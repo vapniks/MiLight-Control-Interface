@@ -132,7 +132,7 @@ class ColorGroup(Group):
     }
 
     # Set BRIGHTNESS
-    # Byte2: 0×02 to 0x1B (decimal range: 2 to 27) full brightness 0x1B (decimal 27)
+    # Byte2: 0x02 to 0x1B (decimal range: 2 to 27) full brightness 0x1B (decimal 27)
     BRIGHTNESS = (78).to_bytes(1, byteorder='big')  # send 100ms after GROUP_ON
 
     # Set to DISCO
@@ -155,7 +155,7 @@ class ColorGroup(Group):
     }
 
     # Set COLOR
-    # Byte2: 0×00 to 0xFF (255 colors) = COLOR_CODE
+    # Byte2: 0x00 to 0xFF (255 colors) = COLOR_CODE
     COLOR = (64).to_bytes(1, byteorder='big')  # send 100ms after GROUP_ON
     COLOR_CODES = {
         "VIOLET": b"\x00",
