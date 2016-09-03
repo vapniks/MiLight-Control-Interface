@@ -14,7 +14,7 @@ def main():
                         help='Search wifi bridges.', default=False, required=False)
 
     parser.add_argument('-i', '--ip_address', action='store', nargs='?', dest='address',
-                        help='IP address.', default='192.168.0.230', required=False, type=str)
+                        help='IP address.', default='10.0.0.60', required=False, type=str)
     parser.add_argument('-p', '--port', action='store', nargs='?', dest='port',
                         help='Port number.', default=8899, required=False, type=int)
 
