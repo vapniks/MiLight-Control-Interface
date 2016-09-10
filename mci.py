@@ -77,6 +77,28 @@ class Group(object):
         sock.close()
         return command
 
+    def send_commands(self, command, steps=1, pause=None, period=None):
+        steps = max(1, min(30, steps))  # value should be between 1 and 30
+        print(command)
+        print(steps)
+        print(pause)
+        print(period)
+        if (pause is None) and (period is None):
+            pause = self.pause
+        elif period is not None:
+            pause = period / steps
+        current_time = time.time()
+        for i in range(0, steps):
+            prev_time = time.time()
+            self.send_command(command)
+            elapsed_time = time.time() - prev_time
+            if elapsed_time < pause:
+                time.sleep(pause - elapsed_time)
+            # recalibrate pause if necessary so that we finish on time
+            if (period is not None) and i < (steps - 1):
+                pause = (period - time.time() + current_time) / (steps - i - 1)
+        return command
+        
     def on(self):
         """ Switch group on """
         self.send_command(self.GROUP_ON[self.group])
@@ -200,19 +222,17 @@ class ColorGroup(Group):
         else:
             self.send_command(self.DISCO_MODE)
 
-    def increase_disco_speed(self, steps=1):
+    def increase_disco_speed(self, steps=1, pause=None, period=None):
         """ Increase disco_speed """
         steps = max(1, min(30, steps))  # value should be between 1 and 30
         self.on()
-        for i in range(0, steps):
-            self.send_command(self.DISCO_SPEED_FASTER)
+        self.send_command(self.DISCO_SPEED_FASTER, steps, pause, period)
 
-    def decrease_disco_speed(self, steps=1):
+    def decrease_disco_speed(self, steps=1, pause=None, period=None):
         """ Decrease disco_speed """
         steps = max(1, min(30, steps))  # value should be between 1 and 30
         self.on()
-        for i in range(0, steps):
-            self.send_command(self.DISCO_SPEED_SLOWER)
+        self.send_commands(self.DISCO_SPEED_SLOWER, steps, pause, period)
 
     def color(self, value):
         """ Set color """
@@ -320,33 +340,29 @@ class WhiteGroup(Group):
         """ init """
         super().___init___(ip_address, port, pause, group_number)
 
-    def increase_brightness(self, steps=1):
+    def increase_brightness(self, steps=1, pause=None, period=None):
         """ Increase brightness """
         steps = max(1, min(30, steps))  # value should be between 1 and 30
         self.on()
-        for i in range(0, steps):
-            self.send_command(self.BRIGHTNESS_UP)
+        self.send_commands(self.BRIGHTNESS_UP, steps, pause, period)        
 
-    def decrease_brightness(self, steps=1):
+    def decrease_brightness(self, steps=1, pause=None, period=None):
         """ Decrease brightness """
         steps = max(1, min(30, steps))  # value should be between 1 and 30
         self.on()
-        for i in range(0, steps):
-            self.send_command(self.BRIGHTNESS_DOWN)
+        self.send_commands(self.BRIGHTNESS_DOWN, steps, pause, period)
 
-    def increase_warmth(self, steps=1):
+    def increase_warmth(self, steps=1, pause=None, period=None):
         """ Increase warmth """
         steps = max(1, min(30, steps))  # value should be between 1 and 30
         self.on()
-        for i in range(0, steps):
-            self.send_command(self.WARM_WHITE_INCREASE)
+        self.send_commands(self.WARM_WHITE_INCREASE, steps, pause, period)
 
-    def decrease_warmth(self, steps=1):
+    def decrease_warmth(self, steps=1, pause=None, period=None):
         """ Decrease warmth """
         steps = max(1, min(30, steps))  # value should be between 1 and 30
         self.on()
-        for i in range(0, steps):
-            self.send_command(self.COOL_WHITE_INCREASE)
+        self.send_commands(self.COOL_WHITE_INCREASE, steps, pause, period)
 
     def brightmode(self):
         """ Enable full brightness """
