@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 """ MiLight Control Interface
 
 A powerful Python API to control your MiLight LED bulbs and strips (White and RGBW).
@@ -6,7 +8,6 @@ Based on the documentation from http://www.limitlessled.com/dev/
 
 import socket
 import time
-
 
 class DiscoverBridge(object):
     """ WIFI Bridge Auto Discovery
@@ -40,7 +41,6 @@ class DiscoverBridge(object):
             print("No server found")
         sock.close()
         return found
-
 
 class Group(object):
     """ Common functions for bulb/strip groups """
