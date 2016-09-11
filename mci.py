@@ -63,6 +63,7 @@ class Group(object):
         self.queue = Queue()
         self.cmdprocs = []
         self.qprocess = Process(target=self.qworker)
+        self.qprocess.daemon = True
 
     def qworker(self):
         """ Process command queue """
@@ -117,15 +118,19 @@ class Group(object):
         return command
 
     def add_commands(self, command, steps=1, pause=None, period=None, byte2=b"\x00", byte3=b"\x55"):
-        """ Create process thread to add commands to the queue """
+        """ Create process thread to add commands to the queue.
+        Return the process id. """
         proc = Process(target=self.send_commands,args=(command, steps, pause, period, byte2, byte3))
+        proc.daemon = True
         self.cmdprocs.append(proc)
         proc.start()
+        proc.pid
 
-    def kill_procs(self)
-        """ Terminate all command processes """
+    def kill_procs(self):
+        """ Terminate and remove all command processes """
         for proc in self.cmdprocs:
             proc.terminate
+        self.cmdprocs = []
         
     def on(self):
         """ Switch group on """
@@ -136,12 +141,21 @@ class Group(object):
 
     def off(self):
         """ Switch group off """
+        # kill all processes
         if self.qprocess.is_alive():
-            # no need to keep qprocess hanging around
             self.qprocess.terminate()
-        self.send_command(self.GROUP_OFF[self.group])
+        self.kill_procs()
+        # now turn the light off
+        current_pause = time.time() - self.last_command_time
+        if current_pause < self.pause:
+            # Lights require time between commands, 100ms is recommended by the documentation
+            time.sleep(self.pause - current_pause)
+        self.last_command_time = time.time()
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        sock.sendto(self.GROUP_OFF[self.group] + b"\x00" + b"\x55", (self.ip_address, self.port))
+        sock.close()
 
-
+            
 class ColorGroup(Group):
     """ A group of RGBW color bulbs/strips """
 
