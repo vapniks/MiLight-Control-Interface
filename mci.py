@@ -77,7 +77,6 @@ class Group(object):
             sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             sock.sendto(command, (self.ip_address, self.port))
             sock.close()
-            #self.queue.task_done()
         
     def send_command(self, command, byte2=b"\x00", byte3=b"\x55"):
         """ Send command to the wifi-bridge """
@@ -126,10 +125,14 @@ class Group(object):
         proc.start()
         proc.pid
 
+    # simple-call-tree-info: TODO - check processes have terminated cleanly
     def kill_procs(self):
         """ Terminate and remove all command processes """
         for proc in self.cmdprocs:
-            proc.terminate
+            proc.terminate()
+            # TODO: print PID of processes that didn't shutdown cleanly
+            if not proc.exitcode == 0:
+                print("Unable to kill process {:d})".format(proc.pid))
         self.cmdprocs = []
         
     def on(self):
@@ -139,6 +142,7 @@ class Group(object):
             self.qprocess.start()
         self.send_command(self.GROUP_ON[self.group])
 
+    # simple-call-tree-info: TODO - check processes are terminated cleanly
     def off(self):
         """ Switch group off """
         # kill all processes
