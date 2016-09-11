@@ -121,6 +121,11 @@ class Group(object):
         proc = Process(target=self.send_commands,args=(command, steps, pause, period, byte2, byte3))
         self.cmdprocs.append(proc)
         proc.start()
+
+    def kill_procs(self)
+        """ Terminate all command processes """
+        for proc in self.cmdprocs:
+            proc.terminate
         
     def on(self):
         """ Switch group on """
