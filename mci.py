@@ -65,7 +65,7 @@ class Group(object):
         self.qprocess = Process(target=self.qworker)
 
     def qworker(self):
-        """  """
+        """ Process command queue """
         while True:
             command = self.queue.get()
             current_pause = time.time() - self.last_command_time
