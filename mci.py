@@ -8,6 +8,7 @@ Based on the documentation from http://www.limitlessled.com/dev/
 
 import socket
 import time
+from multiprocessing import Queue, Process
 
 class DiscoverBridge(object):
     """ WIFI Bridge Auto Discovery
@@ -59,30 +60,45 @@ class Group(object):
         self._brightness = None
         self._warmth = None
         self.last_command_time = time.time()
+        self.queue = Queue()
+        self.cmdprocs = []
+        self.qprocess = Process(target=self.qworker)
 
+    def qworker(self):
+        """  """
+        while True:
+            command = self.queue.get()
+            current_pause = time.time() - self.last_command_time
+            if current_pause < self.pause:
+                # Lights require time between commands, 100ms is recommended by the documentation
+                time.sleep(self.pause - current_pause)
+            self.last_command_time = time.time()
+            sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            sock.sendto(command, (self.ip_address, self.port))
+            sock.close()
+            #self.queue.task_done()
+        
     def send_command(self, command, byte2=b"\x00", byte3=b"\x55"):
         """ Send command to the wifi-bridge """
         if command is None:
             return
-        current_pause = time.time() - self.last_command_time
-        if current_pause < self.pause:
-            # Lights require time between commands, 100ms is recommended by the documentation
-            time.sleep(self.pause - current_pause)
-        self.last_command_time = time.time()
         command += byte2
         command += byte3
-
-        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        sock.sendto(command, (self.ip_address, self.port))
-        sock.close()
+        self.queue.put(command)
         return command
 
-    def send_commands(self, command, steps=1, pause=None, period=None):
+    # send "steps" repeats of "command", each separated by a pause of length "pause"
+    # or if "period" is given, then make the pauses long enough so that the commands
+    # are all sent in that amount of time (in seconds).
+    def send_commands(self, command, steps=1, pause=None, period=None, byte2=b"\x00", byte3=b"\x55"):
+        """ Send \"steps\" repeats of \"command\" with pause of length \"pause\" inbetween, 
+        or if \"period\" is given then make pauses long enough so that commands are all sent
+        within that amount of time (in seconds) """
+        if command is None:
+            return
         steps = max(1, min(30, steps))  # value should be between 1 and 30
-        print(command)
-        print(steps)
-        print(pause)
-        print(period)
+        command += byte2
+        command += byte3
         if (pause is None) and (period is None):
             pause = self.pause
         elif period is not None:
@@ -90,7 +106,8 @@ class Group(object):
         current_time = time.time()
         for i in range(0, steps):
             prev_time = time.time()
-            self.send_command(command)
+            # add the command to the queue for this group
+            self.queue.put(command)
             elapsed_time = time.time() - prev_time
             if elapsed_time < pause:
                 time.sleep(pause - elapsed_time)
@@ -98,13 +115,25 @@ class Group(object):
             if (period is not None) and i < (steps - 1):
                 pause = (period - time.time() + current_time) / (steps - i - 1)
         return command
+
+    def add_commands(self, command, steps=1, pause=None, period=None, byte2=b"\x00", byte3=b"\x55"):
+        """ Create process thread to add commands to the queue """
+        proc = Process(target=self.send_commands,args=(command, steps, pause, period, byte2, byte3))
+        self.cmdprocs.append(proc)
+        proc.start()
         
     def on(self):
         """ Switch group on """
+        if not self.qprocess.is_alive():
+            # make sure we can send commands to the queue
+            self.qprocess.start()
         self.send_command(self.GROUP_ON[self.group])
 
     def off(self):
         """ Switch group off """
+        if self.qprocess.is_alive():
+            # no need to keep qprocess hanging around
+            self.qprocess.terminate()
         self.send_command(self.GROUP_OFF[self.group])
 
 
@@ -344,25 +373,25 @@ class WhiteGroup(Group):
         """ Increase brightness """
         steps = max(1, min(30, steps))  # value should be between 1 and 30
         self.on()
-        self.send_commands(self.BRIGHTNESS_UP, steps, pause, period)        
+        self.add_commands(self.BRIGHTNESS_UP, steps, pause, period)
 
     def decrease_brightness(self, steps=1, pause=None, period=None):
         """ Decrease brightness """
         steps = max(1, min(30, steps))  # value should be between 1 and 30
         self.on()
-        self.send_commands(self.BRIGHTNESS_DOWN, steps, pause, period)
+        self.add_commands(self.BRIGHTNESS_DOWN, steps, pause, period)
 
     def increase_warmth(self, steps=1, pause=None, period=None):
         """ Increase warmth """
         steps = max(1, min(30, steps))  # value should be between 1 and 30
         self.on()
-        self.send_commands(self.WARM_WHITE_INCREASE, steps, pause, period)
+        self.add_commands(self.WARM_WHITE_INCREASE, steps, pause, period)
 
     def decrease_warmth(self, steps=1, pause=None, period=None):
         """ Decrease warmth """
         steps = max(1, min(30, steps))  # value should be between 1 and 30
         self.on()
-        self.send_commands(self.COOL_WHITE_INCREASE, steps, pause, period)
+        self.add_commands(self.COOL_WHITE_INCREASE, steps, pause, period)
 
     def brightmode(self):
         """ Enable full brightness """
