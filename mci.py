@@ -8,7 +8,8 @@ Based on the documentation from http://www.limitlessled.com/dev/
 
 import socket
 import time
-from multiprocessing import Queue, Process
+from queue import PriorityQueue
+from threading import Thread
 
 class DiscoverBridge(object):
     """ WIFI Bridge Auto Discovery
@@ -45,7 +46,6 @@ class DiscoverBridge(object):
 
 class Group(object):
     """ Common functions for bulb/strip groups """
-
     def ___init___(self, ip_address, port=8899, pause=0.1, group_number=None):
         """ init """
         self.ip_address = ip_address
@@ -60,19 +60,21 @@ class Group(object):
         self._brightness = None
         self._warmth = None
         self.last_command_time = time.time()
-        self.queue = Queue()
-        self.cmdprocs = []
-        self.qprocess = Process(target=self.qworker)
+        self.queue = PriorityQueue()
+        self.qprocess = Thread(target=self.qworker)
         self.qprocess.daemon = True
-
+        self.qprocess.start()
+        
+# simple-call-tree-info: TODO 
     def qworker(self):
         """ Process command queue """
         while True:
-            command = self.queue.get()
-            current_pause = time.time() - self.last_command_time
-            if current_pause < self.pause:
-                # Lights require time between commands, 100ms is recommended by the documentation
-                time.sleep(self.pause - current_pause)
+            (cmdtime,command) = self.queue.get()
+            # Lights require time between commands, 100ms is recommended by the documentation
+            pause_remaining = max(cmdtime - time.time(),
+                                      self.pause - (time.time() - self.last_command_time))
+            if pause_remaining > 0:
+                time.sleep(pause_remaining)
             self.last_command_time = time.time()
             sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             sock.sendto(command, (self.ip_address, self.port))
@@ -84,13 +86,11 @@ class Group(object):
             return
         command += byte2
         command += byte3
-        self.queue.put(command)
+        self.queue.put((time.time(),command))
         return command
 
-    # send "steps" repeats of "command", each separated by a pause of length "pause"
-    # or if "period" is given, then make the pauses long enough so that the commands
-    # are all sent in that amount of time (in seconds).
-    def send_commands(self, command, steps=1, pause=None, period=None, byte2=b"\x00", byte3=b"\x55"):
+    # simple-call-tree-info: TODO 
+    def send_commands(self, command, steps=1, pause=None, period=None, time=time.time(), byte2=b"\x00", byte3=b"\x55"):
         """ Send \"steps\" repeats of \"command\" with pause of length \"pause\" inbetween, 
         or if \"period\" is given then make pauses long enough so that commands are all sent
         within that amount of time (in seconds) """
@@ -103,52 +103,28 @@ class Group(object):
             pause = self.pause
         elif period is not None:
             pause = period / steps
-        current_time = time.time()
+        cmdtime = time.time()
         for i in range(0, steps):
-            prev_time = time.time()
-            # add the command to the queue for this group
-            self.queue.put(command)
-            elapsed_time = time.time() - prev_time
-            if elapsed_time < pause:
-                time.sleep(pause - elapsed_time)
-            # recalibrate pause if necessary so that we finish on time
-            if (period is not None) and i < (steps - 1):
-                pause = (period - time.time() + current_time) / (steps - i - 1)
+            cmdtime = cmdtime + pause
+            self.queue.put((cmdtime,command))
         return command
 
-    def add_commands(self, command, steps=1, pause=None, period=None, byte2=b"\x00", byte3=b"\x55"):
-        """ Create process thread to add commands to the queue.
-        Return the process id. """
-        proc = Process(target=self.send_commands,args=(command, steps, pause, period, byte2, byte3))
-        proc.daemon = True
-        self.cmdprocs.append(proc)
-        proc.start()
-        proc.pid
-
-    # simple-call-tree-info: TODO - check processes have terminated cleanly
-    def kill_procs(self):
-        """ Terminate and remove all command processes """
-        for proc in self.cmdprocs:
-            proc.terminate()
-            # TODO: print PID of processes that didn't shutdown cleanly
-            if not proc.exitcode == 0:
-                print("Unable to kill process {:d})".format(proc.pid))
-        self.cmdprocs = []
-        
     def on(self):
         """ Switch group on """
-        if not self.qprocess.is_alive():
-            # make sure we can send commands to the queue
-            self.qprocess.start()
+        # if not self.qprocess.is_alive():
+        #     # make sure we can send commands to the queue
+        #     self.qprocess = Process(target=self.qworker)
+        #     self.qprocess.daemon = True
+        #     self.qprocess.start()
         self.send_command(self.GROUP_ON[self.group])
-
+        # self.qprocess.start()
+        
     # simple-call-tree-info: TODO - check processes are terminated cleanly
     def off(self):
         """ Switch group off """
-        # kill all processes
-        if self.qprocess.is_alive():
-            self.qprocess.terminate()
-        self.kill_procs()
+        # kill queue process
+        # if self.qprocess.is_alive():
+        #     self.qprocess.terminate()
         # now turn the light off
         current_pause = time.time() - self.last_command_time
         if current_pause < self.pause:
@@ -392,29 +368,33 @@ class WhiteGroup(Group):
         """ init """
         super().___init___(ip_address, port, pause, group_number)
 
+# simple-call-tree-info: TODO
     def increase_brightness(self, steps=1, pause=None, period=None):
         """ Increase brightness """
         steps = max(1, min(30, steps))  # value should be between 1 and 30
         self.on()
-        self.add_commands(self.BRIGHTNESS_UP, steps, pause, period)
+        self.send_commands(self.BRIGHTNESS_UP, steps, pause, period)
 
+# simple-call-tree-info: TODO
     def decrease_brightness(self, steps=1, pause=None, period=None):
         """ Decrease brightness """
         steps = max(1, min(30, steps))  # value should be between 1 and 30
         self.on()
-        self.add_commands(self.BRIGHTNESS_DOWN, steps, pause, period)
+        self.send_commands(self.BRIGHTNESS_DOWN, steps, pause, period)
 
+# simple-call-tree-info: TODO
     def increase_warmth(self, steps=1, pause=None, period=None):
         """ Increase warmth """
         steps = max(1, min(30, steps))  # value should be between 1 and 30
         self.on()
-        self.add_commands(self.WARM_WHITE_INCREASE, steps, pause, period)
+        self.send_commands(self.WARM_WHITE_INCREASE, steps, pause, period)
 
+# simple-call-tree-info: TODO
     def decrease_warmth(self, steps=1, pause=None, period=None):
         """ Decrease warmth """
         steps = max(1, min(30, steps))  # value should be between 1 and 30
         self.on()
-        self.add_commands(self.COOL_WHITE_INCREASE, steps, pause, period)
+        self.send_commands(self.COOL_WHITE_INCREASE, steps, pause, period)
 
     def brightmode(self):
         """ Enable full brightness """
