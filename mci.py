@@ -80,20 +80,12 @@ class Group(object):
             sock.sendto(command, (self.ip_address, self.port))
             sock.close()
         
-    def send_command(self, command, byte2=b"\x00", byte3=b"\x55"):
-        """ Send command to the wifi-bridge """
-        if command is None:
-            return
-        command += byte2
-        command += byte3
-        self.queue.put((time.time(),command))
-        return command
-
     # simple-call-tree-info: TODO 
-    def send_commands(self, command, steps=1, pause=None, period=None, time=time.time(), byte2=b"\x00", byte3=b"\x55"):
+    def send_commands(self, command, steps=1, pause=None, period=None, time=None, byte2=b"\x00", byte3=b"\x55"):
         """ Send \"steps\" repeats of \"command\" with pause of length \"pause\" inbetween, 
         or if \"period\" is given then make pauses long enough so that commands are all sent
-        within that amount of time (in seconds) """
+        within that amount of time (in seconds). If \"time\" is supplied, only start sending the commands
+        at that time. Optionally increment command with \"byte2\" and \"byte3\". """
         if command is None:
             return
         steps = max(1, min(30, steps))  # value should be between 1 and 30
@@ -103,7 +95,10 @@ class Group(object):
             pause = self.pause
         elif period is not None:
             pause = period / steps
-        cmdtime = time.time()
+        if time is None:
+            cmdtime = time.time()
+        else:
+            cmdtime = time
         for i in range(0, steps):
             cmdtime = cmdtime + pause
             self.queue.put((cmdtime,command))
@@ -232,35 +227,35 @@ class ColorGroup(Group):
 
     def white(self):
         """ Switch to white """
-        self.send_command(self.GROUP_WHITE[self.group])
+        self.send_commands(command=self.GROUP_WHITE[self.group])
 
     def brightness(self, value=10):
         """ Set brightness level """
         value += 2                      # value should be between 0 and 25
         value = max(2, min(27, value))  # value should be between 2 and 27
         self.on()
-        self.send_command(self.BRIGHTNESS, (value).to_bytes(1, byteorder='big'))
+        self.send_commands(command=self.BRIGHTNESS, byte2=(value).to_bytes(1, byteorder='big'))
 
     def disco(self, mode=''):
         """ Enable disco mode, if no valid mode is provided the default disco mode is started """
         self.on()
         if mode.upper() in self.DISCO_CODES:
             command = self.DISCO_CODE + self.DISCO_CODES[mode.upper()]
-            self.send_command(command, byte2=b"", byte3=b"")
+            self.send_commands(command=command, byte2=b"", byte3=b"")
         else:
-            self.send_command(self.DISCO_MODE)
+            self.send_commands(comand=self.DISCO_MODE)
 
-    def increase_disco_speed(self, steps=1, pause=None, period=None):
+    def increase_disco_speed(self, steps=1, pause=None, period=None, time=None):
         """ Increase disco_speed """
         steps = max(1, min(30, steps))  # value should be between 1 and 30
         self.on()
-        self.send_command(self.DISCO_SPEED_FASTER, steps, pause, period)
+        self.send_commands(command=self.DISCO_SPEED_FASTER, steps=steps, pause=pause, period=period, time=time)
 
-    def decrease_disco_speed(self, steps=1, pause=None, period=None):
+    def decrease_disco_speed(self, steps=1, pause=None, period=None, time=None):
         """ Decrease disco_speed """
         steps = max(1, min(30, steps))  # value should be between 1 and 30
         self.on()
-        self.send_commands(self.DISCO_SPEED_SLOWER, steps, pause, period)
+        self.send_commands(command=self.DISCO_SPEED_SLOWER, steps=steps, pause=pause, period=period, time=time)
 
     def color(self, value):
         """ Set color """
@@ -287,7 +282,7 @@ class ColorGroup(Group):
         else:
             raise ValueError('Invalid color requested (supported types: byte, integer, string)')
         if colorcode is not None:
-            self.send_command(self.COLOR, colorcode)
+            self.send_commands(command=self.COLOR, byte2=colorcode)
         else:
             raise ValueError('Invalid color requested (unspecified error, value-type: ' + str(type(value)) + ')')
 
@@ -369,39 +364,39 @@ class WhiteGroup(Group):
         super().___init___(ip_address, port, pause, group_number)
 
 # simple-call-tree-info: TODO
-    def increase_brightness(self, steps=1, pause=None, period=None):
+    def increase_brightness(self, steps=1, pause=None, period=None, time=None):
         """ Increase brightness """
         steps = max(1, min(30, steps))  # value should be between 1 and 30
         self.on()
-        self.send_commands(self.BRIGHTNESS_UP, steps, pause, period)
+        self.send_commands(self.BRIGHTNESS_UP, steps, pause, period, time)
 
 # simple-call-tree-info: TODO
-    def decrease_brightness(self, steps=1, pause=None, period=None):
+    def decrease_brightness(self, steps=1, pause=None, period=None, time=None):
         """ Decrease brightness """
         steps = max(1, min(30, steps))  # value should be between 1 and 30
         self.on()
-        self.send_commands(self.BRIGHTNESS_DOWN, steps, pause, period)
+        self.send_commands(self.BRIGHTNESS_DOWN, steps, pause, period, time)
 
 # simple-call-tree-info: TODO
-    def increase_warmth(self, steps=1, pause=None, period=None):
+    def increase_warmth(self, steps=1, pause=None, period=None, time=None):
         """ Increase warmth """
         steps = max(1, min(30, steps))  # value should be between 1 and 30
         self.on()
-        self.send_commands(self.WARM_WHITE_INCREASE, steps, pause, period)
+        self.send_commands(self.WARM_WHITE_INCREASE, steps, pause, period, time)
 
 # simple-call-tree-info: TODO
-    def decrease_warmth(self, steps=1, pause=None, period=None):
+    def decrease_warmth(self, steps=1, pause=None, period=None, time=None):
         """ Decrease warmth """
         steps = max(1, min(30, steps))  # value should be between 1 and 30
         self.on()
-        self.send_commands(self.COOL_WHITE_INCREASE, steps, pause, period)
+        self.send_commands(self.COOL_WHITE_INCREASE, steps, pause, period, time)
 
-    def brightmode(self):
+    def brightmode(self, time=None):
         """ Enable full brightness """
         self.on()
-        self.send_command(self.FULL_BRIGHTNESS[self.group])
+        self.send_commands(self.FULL_BRIGHTNESS[self.group], time=time)
 
-    def nightmode(self):
+    def nightmode(self, time=None):
         """ Enable nightmode """
         self.off()
-        self.send_command(self.NIGHT_MODE[self.group])
+        self.send_commands(self.NIGHT_MODE[self.group], time=time)
