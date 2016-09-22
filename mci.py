@@ -123,14 +123,8 @@ class Group(object):
     # simple-call-tree-info: TODO - check processes are terminated cleanly
     def off(self, when=None):
         """ Switch group off """
-        current_pause = time.time() - self.last_command_time
-        if current_pause < self.pause:
-            # Lights require time between commands, 100ms is recommended by the documentation
-            time.sleep(self.pause - current_pause)
-        self.last_command_time = time.time()
-        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        sock.sendto(self.GROUP_OFF[self.group] + b"\x00" + b"\x55", (self.ip_address, self.port))
-        sock.close()
+        self.send_commands(self.GROUP_OFF[self.group] + b"\x00" + b"\x55",
+                               when=when, byte2 = b"", byte3 = b"")
 
             
 class ColorGroup(Group):
