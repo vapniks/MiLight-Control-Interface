@@ -4,18 +4,19 @@
 
 import argparse
 import mci
-
+import time
+import subprocess
 
 def main():
     """ Main. """
     # Parse commandline arguments
     parser = argparse.ArgumentParser()
-    parser.add_argument('-s', '--scan', action='store_true', dest='scan',
+    parser.add_argument('-S', '--scan', action='store_true', dest='scan',
                         help='Search wifi bridges.', default=False, required=False)
 
     parser.add_argument('-i', '--ip_address', action='store', nargs='?', dest='address',
                         help='IP address.', default='10.0.0.60', required=False, type=str)
-    parser.add_argument('-p', '--port', action='store', nargs='?', dest='port',
+    parser.add_argument('-P', '--port', action='store', nargs='?', dest='port',
                         help='Port number.', default=8899, required=False, type=int)
 
     parser.add_argument('-c', '--rgbw', action='store', dest='rgbw',
@@ -25,7 +26,15 @@ def main():
 
     parser.add_argument('-a', '--action', action='store', dest='action',
                         help='The desired action, default: None (for white bulbs/strips: ON, OFF, INC_BRIGHTNESS, DEC_BRIGHTNESS, INC_WARMTH, DEC_WARMTH, BRIGHT_MODE, NIGHT_MODE | for rgbw bulbs/strips: ON, OFF, DISCO_MODE, INC_DISCO_SPEED, DEC_DISCO_SPEED)', default=None, required=False)
-
+    parser.add_argument('-s', '--steps', action='store', dest='steps', type=int,
+                            help='Number of steps to perform for given action (default=1)', default=1, required=False)
+    parser.add_argument('-p', '--pause', action='store', dest='pause', type=float,
+                            help='Pause between steps, in seconds (minimum=default=0.1)', default=0.1, required=False)
+    parser.add_argument('-t', '--period', action='store', dest='period', type=float,
+                            help='Period of time (in seconds) over which steps should be performed (default=1)', default=None, required=False)
+    # TODO: accept a time as a string for the --when argument
+    parser.add_argument('-W', '--when', action='store', dest='when', default=None, required=False,
+                            help='Time at which command should be executed. Can be any string accepted by the linux "date" command (default=now)')
     parser.add_argument('--on', action='store_true', dest='action_on',
                         help='Action: ON', default=False, required=False)
     parser.add_argument('--off', action='store_true', dest='action_off',
@@ -56,7 +65,7 @@ def main():
                         help='Action (white bulbs/strips only): BRIGHT_MODE', default=False, required=False)
     parser.add_argument('--n', action='store_true', dest='action_n',
                         help='Action (white bulbs/strips only): NIGHT_MODE', default=False, required=False)
-
+    parser.set_defaults(steps=1, pause=0.1, period=None, when=None)
     args = parser.parse_args()
     address = args.address
     port = args.port
@@ -71,21 +80,24 @@ def main():
     # Set the requested actions
     action_on = args.action_on
     action_off = args.action_off
-
+    # ColourGroup actions
     action_ew = args.action_ew
     action_br = args.action_br
     action_cc = args.action_cc
     action_d = args.action_d
     action_id = args.action_id
     action_dd = args.action_dd
-
+    # WhiteGroup actions
     action_ib = args.action_ib
     action_db = args.action_db
     action_iw = args.action_iw
     action_dw = args.action_dw
     action_b = args.action_b
     action_n = args.action_n
-
+    # convert "when" argument to float if present
+    if args.when is not None:
+        args.when = float(subprocess.check_output("date +%s --date " + args.when, shell=True))
+        
     if args.action is not None:
         if args.action == 'ON':
             action_on = True
@@ -128,15 +140,15 @@ def main():
         if action_ew:
             lc.white()
         if action_br is not None:
-            lc.brightness(int(action_br))
+            lc.brightness(int(action_br), when=args.when)
         if action_cc is not None:
-            lc.color(action_cc)
+            lc.color(action_cc, when=args.when)
         if action_d:
-            lc.disco()
+            lc.disco(when=args.when)
         if action_id:
-            lc.increase_disco_speed()
+            lc.increase_disco_speed(steps=args.steps, pause=args.pause, period=args.period, when=args.when)
         if action_dd:
-            lc.decrease_disco_speed()
+            lc.decrease_disco_speed(steps=args.steps, pause=args.pause, period=args.period, when=args.when)
 
     # Execute action White bulbs/strips
     if args.white is not None:
@@ -150,18 +162,21 @@ def main():
         if action_off:
             lc.off()
         if action_ib:
-            lc.increase_brightness()
+            lc.increase_brightness(steps=args.steps, pause=args.pause, period=args.period, when=args.when)
         if action_db:
-            lc.decrease_brightness()
+            lc.decrease_brightness(steps=args.steps, pause=args.pause, period=args.period, when=args.when)
         if action_iw:
-            lc.increase_warmth()
+            lc.increase_warmth(steps=args.steps, pause=args.pause, period=args.period, when=args.when)
         if action_dw:
-            lc.decrease_warmth()
+            lc.decrease_warmth(steps=args.steps, pause=args.pause, period=args.period, when=args.when)
         if action_b:
-            lc.brightmode()
+            lc.brightmode(when=args.when)
         if action_n:
-            lc.nightmode()
-
+            lc.nightmode(when=args.when)
+            
+    while lc.queue.qsize() > 0:
+        time.sleep(0.1)
+    time.sleep(0.1)
 
 if __name__ == '__main__':
     main()

@@ -64,6 +64,7 @@ class Group(object):
         self.qprocess = Thread(target=self.qworker)
         self.qprocess.daemon = True
         self.qprocess.start()
+
         
 # simple-call-tree-info: TODO 
     def qworker(self):
@@ -81,10 +82,10 @@ class Group(object):
             sock.close()
         
     # simple-call-tree-info: TODO 
-    def send_commands(self, command, steps=1, pause=None, period=None, time=None, byte2=b"\x00", byte3=b"\x55"):
+    def send_commands(self, command, steps=1, pause=None, period=None, when=None, byte2=b"\x00", byte3=b"\x55"):
         """ Send \"steps\" repeats of \"command\" with pause of length \"pause\" inbetween, 
         or if \"period\" is given then make pauses long enough so that commands are all sent
-        within that amount of time (in seconds). If \"time\" is supplied, only start sending the commands
+        within that amount of time (in seconds). If \"when\" is supplied, only start sending the commands
         at that time. Optionally increment command with \"byte2\" and \"byte3\". """
         if command is None:
             return
@@ -95,10 +96,10 @@ class Group(object):
             pause = self.pause
         elif period is not None:
             pause = period / steps
-        if time is None:
+        if when is None:
             cmdtime = time.time()
         else:
-            cmdtime = time
+            cmdtime = when
         for i in range(0, steps):
             cmdtime = cmdtime + pause
             self.queue.put((cmdtime,command))
@@ -106,21 +107,17 @@ class Group(object):
 
     def on(self):
         """ Switch group on """
-        # if not self.qprocess.is_alive():
-        #     # make sure we can send commands to the queue
-        #     self.qprocess = Process(target=self.qworker)
-        #     self.qprocess.daemon = True
-        #     self.qprocess.start()
-        self.send_command(self.GROUP_ON[self.group])
+        if not self.qprocess.is_alive():
+            # make sure we can send commands to the queue
+            self.qprocess = Process(target=self.qworker)
+            self.qprocess.daemon = True
+            self.qprocess.start()
+        self.send_commands(command=self.GROUP_ON[self.group])
         # self.qprocess.start()
         
     # simple-call-tree-info: TODO - check processes are terminated cleanly
     def off(self):
         """ Switch group off """
-        # kill queue process
-        # if self.qprocess.is_alive():
-        #     self.qprocess.terminate()
-        # now turn the light off
         current_pause = time.time() - self.last_command_time
         if current_pause < self.pause:
             # Lights require time between commands, 100ms is recommended by the documentation
@@ -229,35 +226,33 @@ class ColorGroup(Group):
         """ Switch to white """
         self.send_commands(command=self.GROUP_WHITE[self.group])
 
-    def brightness(self, value=10):
+    def brightness(self, value=10, when=None):
         """ Set brightness level """
         value += 2                      # value should be between 0 and 25
         value = max(2, min(27, value))  # value should be between 2 and 27
         self.on()
-        self.send_commands(command=self.BRIGHTNESS, byte2=(value).to_bytes(1, byteorder='big'))
+        self.send_commands(command=self.BRIGHTNESS, when=when, byte2=(value).to_bytes(1, byteorder='big'))
 
-    def disco(self, mode=''):
+    def disco(self, mode='', when=None):
         """ Enable disco mode, if no valid mode is provided the default disco mode is started """
         self.on()
         if mode.upper() in self.DISCO_CODES:
             command = self.DISCO_CODE + self.DISCO_CODES[mode.upper()]
-            self.send_commands(command=command, byte2=b"", byte3=b"")
+            self.send_commands(command=command, when=when, byte2=b"", byte3=b"")
         else:
             self.send_commands(comand=self.DISCO_MODE)
 
-    def increase_disco_speed(self, steps=1, pause=None, period=None, time=None):
+    def increase_disco_speed(self, steps=1, pause=None, period=None, when=None):
         """ Increase disco_speed """
-        steps = max(1, min(30, steps))  # value should be between 1 and 30
         self.on()
-        self.send_commands(command=self.DISCO_SPEED_FASTER, steps=steps, pause=pause, period=period, time=time)
+        self.send_commands(command=self.DISCO_SPEED_FASTER, steps=steps, pause=pause, period=period, when=when)
 
-    def decrease_disco_speed(self, steps=1, pause=None, period=None, time=None):
+    def decrease_disco_speed(self, steps=1, pause=None, period=None, when=None):
         """ Decrease disco_speed """
-        steps = max(1, min(30, steps))  # value should be between 1 and 30
         self.on()
-        self.send_commands(command=self.DISCO_SPEED_SLOWER, steps=steps, pause=pause, period=period, time=time)
+        self.send_commands(command=self.DISCO_SPEED_SLOWER, steps=steps, pause=pause, period=period, when=when)
 
-    def color(self, value):
+    def color(self, value, when=None):
         """ Set color """
         self.on()
         colorcode = None
@@ -282,7 +277,7 @@ class ColorGroup(Group):
         else:
             raise ValueError('Invalid color requested (supported types: byte, integer, string)')
         if colorcode is not None:
-            self.send_commands(command=self.COLOR, byte2=colorcode)
+            self.send_commands(command=self.COLOR, when=when, byte2=colorcode)
         else:
             raise ValueError('Invalid color requested (unspecified error, value-type: ' + str(type(value)) + ')')
 
@@ -364,39 +359,35 @@ class WhiteGroup(Group):
         super().___init___(ip_address, port, pause, group_number)
 
 # simple-call-tree-info: TODO
-    def increase_brightness(self, steps=1, pause=None, period=None, time=None):
+    def increase_brightness(self, steps=1, pause=None, period=None, when=None):
         """ Increase brightness """
-        steps = max(1, min(30, steps))  # value should be between 1 and 30
         self.on()
-        self.send_commands(self.BRIGHTNESS_UP, steps, pause, period, time)
+        self.send_commands(self.BRIGHTNESS_UP, steps, pause, period, when)
 
 # simple-call-tree-info: TODO
-    def decrease_brightness(self, steps=1, pause=None, period=None, time=None):
+    def decrease_brightness(self, steps=1, pause=None, period=None, when=None):
         """ Decrease brightness """
-        steps = max(1, min(30, steps))  # value should be between 1 and 30
         self.on()
-        self.send_commands(self.BRIGHTNESS_DOWN, steps, pause, period, time)
+        self.send_commands(self.BRIGHTNESS_DOWN, steps, pause, period, when)
 
 # simple-call-tree-info: TODO
-    def increase_warmth(self, steps=1, pause=None, period=None, time=None):
+    def increase_warmth(self, steps=1, pause=None, period=None, when=None):
         """ Increase warmth """
-        steps = max(1, min(30, steps))  # value should be between 1 and 30
         self.on()
-        self.send_commands(self.WARM_WHITE_INCREASE, steps, pause, period, time)
+        self.send_commands(self.WARM_WHITE_INCREASE, steps, pause, period, when)
 
 # simple-call-tree-info: TODO
-    def decrease_warmth(self, steps=1, pause=None, period=None, time=None):
+    def decrease_warmth(self, steps=1, pause=None, period=None, when=None):
         """ Decrease warmth """
-        steps = max(1, min(30, steps))  # value should be between 1 and 30
         self.on()
-        self.send_commands(self.COOL_WHITE_INCREASE, steps, pause, period, time)
+        self.send_commands(self.COOL_WHITE_INCREASE, steps, pause, period, when)
 
-    def brightmode(self, time=None):
+    def brightmode(self, when=None):
         """ Enable full brightness """
         self.on()
-        self.send_commands(self.FULL_BRIGHTNESS[self.group], time=time)
+        self.send_commands(self.FULL_BRIGHTNESS[self.group], when=when)
 
-    def nightmode(self, time=None):
+    def nightmode(self, when=None):
         """ Enable nightmode """
         self.off()
-        self.send_commands(self.NIGHT_MODE[self.group], time=time)
+        self.send_commands(self.NIGHT_MODE[self.group], when=when)
