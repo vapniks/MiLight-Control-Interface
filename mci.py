@@ -64,13 +64,14 @@ class Group(object):
         self.qprocess = Thread(target=self.qworker)
         self.qprocess.daemon = True
         self.qprocess.start()
-
+        self.finished = True
         
 # simple-call-tree-info: TODO 
     def qworker(self):
         """ Process command queue """
         while True:
             (cmdtime,command) = self.queue.get()
+            self.finished = False
             # Lights require time between commands, 100ms is recommended by the documentation
             pause_remaining = max(cmdtime - time.time(),
                                       self.pause - (time.time() - self.last_command_time))
@@ -80,7 +81,9 @@ class Group(object):
             sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             sock.sendto(command, (self.ip_address, self.port))
             sock.close()
-        
+            if self.queue.empty():
+                self.finished = True
+            
     # simple-call-tree-info: TODO 
     def send_commands(self, command, steps=1, pause=None, period=None, when=None, byte2=b"\x00", byte3=b"\x55"):
         """ Send \"steps\" repeats of \"command\" with pause of length \"pause\" inbetween, 
@@ -89,6 +92,7 @@ class Group(object):
         at that time. Optionally increment command with \"byte2\" and \"byte3\". """
         if command is None:
             return
+        self.finished = False
         steps = max(1, min(30, steps))  # value should be between 1 and 30
         command += byte2
         command += byte3

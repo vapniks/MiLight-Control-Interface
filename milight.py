@@ -174,9 +174,8 @@ def main():
         if action_n:
             lc.nightmode(when=args.when)
             
-    while lc.queue.qsize() > 0:
+    while not lc.finished:
         time.sleep(0.1)
-    time.sleep(0.1)
 
 if __name__ == '__main__':
     main()
