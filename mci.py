@@ -72,6 +72,8 @@ class Group(object):
         while True:
             (cmdtime,command) = self.queue.get()
             self.finished = False
+            if cmdtime is None:
+                cmdtime = time.time()
             # Lights require time between commands, 100ms is recommended by the documentation
             pause_remaining = max(cmdtime - time.time(),
                                       self.pause - (time.time() - self.last_command_time))
@@ -109,18 +111,17 @@ class Group(object):
             self.queue.put((cmdtime,command))
         return command
 
-    def on(self):
+    def on(self, when=None):
         """ Switch group on """
         if not self.qprocess.is_alive():
             # make sure we can send commands to the queue
             self.qprocess = Process(target=self.qworker)
             self.qprocess.daemon = True
             self.qprocess.start()
-        self.send_commands(command=self.GROUP_ON[self.group])
-        # self.qprocess.start()
+        self.send_commands(command=self.GROUP_ON[self.group], when=when)
         
     # simple-call-tree-info: TODO - check processes are terminated cleanly
-    def off(self):
+    def off(self, when=None):
         """ Switch group off """
         current_pause = time.time() - self.last_command_time
         if current_pause < self.pause:
