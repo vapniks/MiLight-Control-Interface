@@ -46,6 +46,35 @@ class DiscoverBridge(object):
 
 class Group(object):
     """ Common functions for bulb/strip groups """
+    # static record of time that last command was executed
+    _last_command_time = time.time() 
+    def get_last_time(self):
+        return self._last_command_time
+    def set_last_time(self, val):
+        self._last_command_time = val
+    last_command_time = property(get_last_time, set_last_time)
+    
+    # static queue for storing commands
+    _queue = PriorityQueue()
+    def get_queue(self):
+        return self._queue
+    queue = property(get_queue)
+    
+    # static process for handling commands
+    _qprocess = Thread()
+    def get_process(self):
+        return self._qprocess
+    qprocess = property(get_process)
+    
+    # static variable to indicate if all commands have been processed
+    _finished = True
+    def get_finished(self):
+        return self._finished
+    def set_finished(self, val):
+        self._finished = val
+    finished = property(get_finished, set_finished)
+    
+    # initialisation
     def ___init___(self, ip_address, port=8899, pause=0.1, group_number=None):
         """ init """
         self.ip_address = ip_address
@@ -57,14 +86,10 @@ class Group(object):
             self.group = str(group_number)
         else:
             self.group = 'ALL'
-        self._brightness = None
-        self._warmth = None
-        self.last_command_time = time.time()
-        self.queue = PriorityQueue()
-        self.qprocess = Thread(target=self.qworker)
-        self.qprocess.daemon = True
-        self.qprocess.start()
-        self.finished = True
+        if self.qprocess._target is None:
+            self.qprocess._target = self.qworker
+            self.qprocess.daemon = True
+            self.qprocess.start()
         
 # simple-call-tree-info: TODO - send on command between each command to ensure that correct group is selected (need to think about timing)
     def qworker(self):
