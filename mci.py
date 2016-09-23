@@ -66,7 +66,7 @@ class Group(object):
         self.qprocess.start()
         self.finished = True
         
-# simple-call-tree-info: TODO 
+# simple-call-tree-info: TODO - send on command between each command to ensure that correct group is selected (need to think about timing)
     def qworker(self):
         """ Process command queue """
         while True:
@@ -123,8 +123,7 @@ class Group(object):
     # simple-call-tree-info: TODO - check processes are terminated cleanly
     def off(self, when=None):
         """ Switch group off """
-        self.send_commands(self.GROUP_OFF[self.group] + b"\x00" + b"\x55",
-                               when=when, byte2 = b"", byte3 = b"")
+        self.send_commands(self.GROUP_OFF[self.group], when=when)
 
             
 class ColorGroup(Group):
