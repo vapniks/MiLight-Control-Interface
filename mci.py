@@ -78,8 +78,8 @@ class Group(object):
         if pause <= 0:
             pause = 0.1
         self.pause = pause
-        if str(group_number) in ['1', '2', '3', '4']:
-            self.group = str(group_number)
+        if str(group) in ['1', '2', '3', '4']:
+            self.group = str(group)
         else:
             self.group = 'ALL'
         if self.qprocess._target is None:
@@ -113,7 +113,7 @@ class Group(object):
             if self.queue.empty():
                 self.finished = True
             
-    def send_commands(self, command, steps=1, pause=None, period=None, when=None, interleave=False, byte2=b"\x00", byte3=b"\x55"):
+    def send_commands(self, command, steps=1, period=None, pause=None, when=None, interleave=False, byte2=b"\x00", byte3=b"\x55"):
         """ Send \"steps\" repeats of \"command\" with pause of length \"pause\" inbetween, 
         or if \"period\" is given then make pauses long enough so that commands are all sent
         within that amount of time (in seconds). If \"when\" is supplied, only start sending the commands
@@ -242,9 +242,9 @@ class ColorGroup(Group):
         "ORCHID": b"\xE0",
         "LAVENDER": b"\xF0"
     }
-    def __init__(self, ip_address, port=8899, pause=0.1, group_number=None):
+    def __init__(self, ip_address, port=8899, pause=0.1, group=None):
         """ init """
-        super().___init___(ip_address, port, pause, group_number)
+        super().___init___(ip_address, port, pause, group)
 
     def white(self):
         """ Switch to white """
@@ -266,15 +266,15 @@ class ColorGroup(Group):
         else:
             self.send_commands(comand=self.DISCO_MODE)
 
-    def increase_disco_speed(self, steps=1, pause=None, period=None, when=None):
+    def increase_disco_speed(self, steps=1, period=None, pause=None, when=None):
         """ Increase disco_speed """
         self.on()
-        self.send_commands(command=self.DISCO_SPEED_FASTER, steps=steps, pause=pause, period=period, when=when)
+        self.send_commands(command=self.DISCO_SPEED_FASTER, steps=steps, period=period, pause=pause, when=when)
 
-    def decrease_disco_speed(self, steps=1, pause=None, period=None, when=None):
+    def decrease_disco_speed(self, steps=1, period=None, pause=None, when=None):
         """ Decrease disco_speed """
         self.on()
-        self.send_commands(command=self.DISCO_SPEED_SLOWER, steps=steps, pause=pause, period=period, when=when)
+        self.send_commands(command=self.DISCO_SPEED_SLOWER, steps=steps,  period=period, pause=pause, when=when)
 
     def color(self, value, when=None):
         """ Set color """
@@ -376,33 +376,33 @@ class WhiteGroup(Group):
         '4': NIGHT_MODE_GROUP_4
     }
 
-    def __init__(self, ip_address, port=8899, pause=0.1, group_number=None):
+    def __init__(self, ip_address, port=8899, pause=0.1, group=None):
         """ init """
-        super().___init___(ip_address, port, pause, group_number)
+        super().___init___(ip_address, port, pause, group)
 
-    def increase_brightness(self, steps=1, pause=None, period=None, when=None, interleave=False):
+    def increase_brightness(self, steps=1, period=None, pause=None, when=None, interleave=False):
         """ Increase brightness """
         self.on()
-        self.send_commands(self.BRIGHTNESS_UP, steps=steps, pause=pause,
-                               period=period, when=when, interleave=interleave)
+        self.send_commands(self.BRIGHTNESS_UP, steps=steps, period=period, pause=pause,
+                               when=when, interleave=interleave)
 
-    def decrease_brightness(self, steps=1, pause=None, period=None, when=None, interleave=False):
+    def decrease_brightness(self, steps=1, period=None, pause=None, when=None, interleave=False):
         """ Decrease brightness """
         self.on()
-        self.send_commands(self.BRIGHTNESS_DOWN, steps=steps, pause=pause,
-                               period=period, when=when, interleave=interleave)
+        self.send_commands(self.BRIGHTNESS_DOWN, steps=steps, period=period, pause=pause,
+                               when=when, interleave=interleave)
 
-    def increase_warmth(self, steps=1, pause=None, period=None, when=None, interleave=False):
+    def increase_warmth(self, steps=1, period=None, pause=None, when=None, interleave=False):
         """ Increase warmth """
         self.on()
-        self.send_commands(self.WARM_WHITE_INCREASE, steps=steps, pause=pause,
-                               period=period, when=when, interleave=interleave)
+        self.send_commands(self.WARM_WHITE_INCREASE, steps=steps,  period=period, pause=pause,
+                               when=when, interleave=interleave)
 
-    def decrease_warmth(self, steps=1, pause=None, period=None, when=None, interleave=False):
+    def decrease_warmth(self, steps=1, period=None, pause=None, when=None, interleave=False):
         """ Decrease warmth """
         self.on()
-        self.send_commands(self.COOL_WHITE_INCREASE, steps=steps, pause=pause,
-                               period=period, when=when, interleave=interleave)
+        self.send_commands(self.COOL_WHITE_INCREASE, steps=steps, period=period, pause=pause, 
+                               when=when, interleave=interleave)
 
     def brightmode(self, when=None):
         """ Enable full brightness """

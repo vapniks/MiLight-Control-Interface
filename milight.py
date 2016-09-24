@@ -65,7 +65,7 @@ def main():
                         help='Action (white bulbs/strips only): BRIGHT_MODE', default=False, required=False)
     parser.add_argument('--n', action='store_true', dest='action_n',
                         help='Action (white bulbs/strips only): NIGHT_MODE', default=False, required=False)
-    parser.set_defaults(steps=1, pause=0.1, period=None, when=None)
+    parser.set_defaults(steps=1, period=None, pause=0.1, when=None)
     args = parser.parse_args()
     address = args.address
     port = args.port
@@ -132,7 +132,7 @@ def main():
         group = None
         if args.rgbw in ['1', '2', '3', '4']:
             group = int(args.rgbw)
-        lc = mci.ColorGroup(address, port, group_number=group)
+        lc = mci.ColorGroup(address, port, group=group)
         if action_on:
             lc.on()
         if action_off:
@@ -146,9 +146,9 @@ def main():
         if action_d:
             lc.disco(when=args.when)
         if action_id:
-            lc.increase_disco_speed(steps=args.steps, pause=args.pause, period=args.period, when=args.when)
+            lc.increase_disco_speed(steps=args.steps, period=args.period, pause=args.pause, when=args.when)
         if action_dd:
-            lc.decrease_disco_speed(steps=args.steps, pause=args.pause, period=args.period, when=args.when)
+            lc.decrease_disco_speed(steps=args.steps, period=args.period, pause=args.pause, when=args.when)
 
     # Execute action White bulbs/strips
     if args.white is not None:
@@ -156,19 +156,19 @@ def main():
         group = None
         if args.white in ['1', '2', '3', '4']:
             group = int(args.white)
-        lc = mci.WhiteGroup(address, port, group_number=group)
+        lc = mci.WhiteGroup(address, port, group=group)
         if action_on:
             lc.on()
         if action_off:
             lc.off()
         if action_ib:
-            lc.increase_brightness(steps=args.steps, pause=args.pause, period=args.period, when=args.when)
+            lc.increase_brightness(steps=args.steps, period=args.period, pause=args.pause, when=args.when)
         if action_db:
-            lc.decrease_brightness(steps=args.steps, pause=args.pause, period=args.period, when=args.when)
+            lc.decrease_brightness(steps=args.steps, period=args.period, pause=args.pause, when=args.when)
         if action_iw:
-            lc.increase_warmth(steps=args.steps, pause=args.pause, period=args.period, when=args.when)
+            lc.increase_warmth(steps=args.steps, period=args.period, pause=args.pause, when=args.when)
         if action_dw:
-            lc.decrease_warmth(steps=args.steps, pause=args.pause, period=args.period, when=args.when)
+            lc.decrease_warmth(steps=args.steps, period=args.period, pause=args.pause, when=args.when)
         if action_b:
             lc.brightmode(when=args.when)
         if action_n:
