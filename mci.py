@@ -53,19 +53,16 @@ class Group(object):
     def set_last_time(self, val):
         self._last_command_time = val
     last_command_time = property(get_last_time, set_last_time)
-    
     # static queue for storing commands
     _queue = PriorityQueue()
     def get_queue(self):
         return self._queue
     queue = property(get_queue)
-    
     # static process for handling commands
     _qprocess = Thread()
     def get_process(self):
         return self._qprocess
     qprocess = property(get_process)
-    
     # static variable to indicate if all commands have been processed
     _finished = True
     def get_finished(self):
@@ -73,7 +70,6 @@ class Group(object):
     def set_finished(self, val):
         self._finished = val
     finished = property(get_finished, set_finished)
-    
     # initialisation
     def ___init___(self, ip_address, port=8899, pause=0.1, group_number=None):
         """ init """
@@ -91,32 +87,40 @@ class Group(object):
             self.qprocess.daemon = True
             self.qprocess.start()
         
-# simple-call-tree-info: TODO - send on command between each command to ensure that correct group is selected (need to think about timing)
     def qworker(self):
         """ Process command queue """
         while True:
-            (cmdtime,command) = self.queue.get()
+            (cmdtime,command,group) = self.queue.get()
             self.finished = False
             if cmdtime is None:
                 cmdtime = time.time()
             # Lights require time between commands, 100ms is recommended by the documentation
             pause_remaining = max(cmdtime - time.time(),
-                                      self.pause - (time.time() - self.last_command_time))
+                                      ((1 if group is None else 2)*self.pause)
+                                      - (time.time() - self.last_command_time))
             if pause_remaining > 0:
                 time.sleep(pause_remaining)
+            # open the connection and send the command(s)
+            sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)                
+            if group is not None:
+                oncmd = self.GROUP_ON[group] + b"\x00" + b"\x55"
+                sock.sendto(oncmd, (self.ip_address, self.port))
+            time.sleep(self.pause)    
             self.last_command_time = time.time()
-            sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             sock.sendto(command, (self.ip_address, self.port))
+            # close the connection and flag if the queue is empty
             sock.close()
             if self.queue.empty():
                 self.finished = True
             
-    # simple-call-tree-info: TODO 
-    def send_commands(self, command, steps=1, pause=None, period=None, when=None, byte2=b"\x00", byte3=b"\x55"):
+    def send_commands(self, command, steps=1, pause=None, period=None, when=None, interleave=False, byte2=b"\x00", byte3=b"\x55"):
         """ Send \"steps\" repeats of \"command\" with pause of length \"pause\" inbetween, 
         or if \"period\" is given then make pauses long enough so that commands are all sent
         within that amount of time (in seconds). If \"when\" is supplied, only start sending the commands
-        at that time. Optionally increment command with \"byte2\" and \"byte3\". """
+        at that time. If \"interleave\" is True (its False by default) then interleave commands with calls 
+        to \"on\" to ensure that all commands go to the same group number. In this case (interleave = True), 
+        the minimum delay between commands (default = 0.1) will be twice as large as normal (so 0.2 by default).
+        Optionally increment command with \"byte2\" and \"byte3\". """
         if command is None:
             return
         self.finished = False
@@ -127,13 +131,18 @@ class Group(object):
             pause = self.pause
         elif period is not None:
             pause = period / steps
+        if interleave and (pause < 2*(self.pause)):
+            pause = 2*(self.pause)
         if when is None:
             cmdtime = time.time()
         else:
             cmdtime = when
         for i in range(0, steps):
             cmdtime = cmdtime + pause
-            self.queue.put((cmdtime,command))
+            if interleave:
+                self.queue.put((cmdtime-self.pause,command,self.group))
+            else:
+                self.queue.put((cmdtime,command,None))
         return command
 
     def on(self, when=None):
@@ -145,7 +154,6 @@ class Group(object):
             self.qprocess.start()
         self.send_commands(command=self.GROUP_ON[self.group], when=when)
         
-    # simple-call-tree-info: TODO - check processes are terminated cleanly
     def off(self, when=None):
         """ Switch group off """
         self.send_commands(self.GROUP_OFF[self.group], when=when)
@@ -153,7 +161,6 @@ class Group(object):
             
 class ColorGroup(Group):
     """ A group of RGBW color bulbs/strips """
-
     # Standard ON/OFF
     RGBW_ALL_ON = (66).to_bytes(1, byteorder='big')
     RGBW_ALL_OFF = (65).to_bytes(1, byteorder='big')
@@ -180,7 +187,6 @@ class ColorGroup(Group):
         '3': GROUP_3_OFF,
         '4': GROUP_4_OFF
     }
-
     # Set to WHITE
     RGBW_ALL_TO_WHITE = (194).to_bytes(1, byteorder='big')  # send 100ms after GROUP_ON
     GROUP_1_TO_WHITE = (197).to_bytes(1, byteorder='big')  # send 100ms after GROUP_ON
@@ -195,16 +201,13 @@ class ColorGroup(Group):
         '3': GROUP_3_TO_WHITE,
         '4': GROUP_4_TO_WHITE
     }
-
     # Set BRIGHTNESS
     # Byte2: 0x02 to 0x1B (decimal range: 2 to 27) full brightness 0x1B (decimal 27)
     BRIGHTNESS = (78).to_bytes(1, byteorder='big')  # send 100ms after GROUP_ON
-
     # Set to DISCO
     DISCO_MODE = (77).to_bytes(1, byteorder='big')  # send 100ms after GROUP_ON
     DISCO_SPEED_SLOWER = (67).to_bytes(1, byteorder='big')  # send 100ms after GROUP_ON
     DISCO_SPEED_FASTER = (68).to_bytes(1, byteorder='big')  # send 100ms after GROUP_ON
-
     # Specials disco
     DISCO_CODE = b"\x42\x00\x40\x40\x42\x00\x4e\x02"
     DISCO_CODES = {
@@ -342,13 +345,11 @@ class WhiteGroup(Group):
         '3': GROUP_3_OFF,
         '4': GROUP_4_OFF
     }
-
     # Standard BRIGHTNESS/WHITE-COLOR
     BRIGHTNESS_UP = (60).to_bytes(1, byteorder='big')
     BRIGHTNESS_DOWN = (52).to_bytes(1, byteorder='big')
     WARM_WHITE_INCREASE = (62).to_bytes(1, byteorder='big')
     COOL_WHITE_INCREASE = (63).to_bytes(1, byteorder='big')
-
     # Specials FULL_BRIGHTNESS/NIGHT_MODE
     FULL_BRIGHTNESS_ALL = (181).to_bytes(1, byteorder='big')  # send 100ms after GROUP_ON
     FULL_BRIGHTNESS_GROUP_1 = (184).to_bytes(1, byteorder='big')  # send 100ms after GROUP_ON
@@ -381,29 +382,29 @@ class WhiteGroup(Group):
         """ init """
         super().___init___(ip_address, port, pause, group_number)
 
-# simple-call-tree-info: TODO
-    def increase_brightness(self, steps=1, pause=None, period=None, when=None):
+    def increase_brightness(self, steps=1, pause=None, period=None, when=None, interleave=False):
         """ Increase brightness """
         self.on()
-        self.send_commands(self.BRIGHTNESS_UP, steps, pause, period, when)
+        self.send_commands(self.BRIGHTNESS_UP, steps=steps, pause=pause,
+                               period=period, when=when, interleave=interleave)
 
-# simple-call-tree-info: TODO
-    def decrease_brightness(self, steps=1, pause=None, period=None, when=None):
+    def decrease_brightness(self, steps=1, pause=None, period=None, when=None, interleave=False):
         """ Decrease brightness """
         self.on()
-        self.send_commands(self.BRIGHTNESS_DOWN, steps, pause, period, when)
+        self.send_commands(self.BRIGHTNESS_DOWN, steps=steps, pause=pause,
+                               period=period, when=when, interleave=interleave)
 
-# simple-call-tree-info: TODO
-    def increase_warmth(self, steps=1, pause=None, period=None, when=None):
+    def increase_warmth(self, steps=1, pause=None, period=None, when=None, interleave=False):
         """ Increase warmth """
         self.on()
-        self.send_commands(self.WARM_WHITE_INCREASE, steps, pause, period, when)
+        self.send_commands(self.WARM_WHITE_INCREASE, steps=steps, pause=pause,
+                               period=period, when=when, interleave=interleave)
 
-# simple-call-tree-info: TODO
-    def decrease_warmth(self, steps=1, pause=None, period=None, when=None):
+    def decrease_warmth(self, steps=1, pause=None, period=None, when=None, interleave=False):
         """ Decrease warmth """
         self.on()
-        self.send_commands(self.COOL_WHITE_INCREASE, steps, pause, period, when)
+        self.send_commands(self.COOL_WHITE_INCREASE, steps=steps, pause=pause,
+                               period=period, when=when, interleave=interleave)
 
     def brightmode(self, when=None):
         """ Enable full brightness """
