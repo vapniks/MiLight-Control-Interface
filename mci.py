@@ -71,7 +71,7 @@ class Group(object):
         self._finished = val
     finished = property(get_finished, set_finished)
     # initialisation
-    def ___init___(self, ip_address, port=8899, pause=0.1, group_number=None):
+    def ___init___(self, ip_address, port=8899, pause=0.1, group=None):
         """ init """
         self.ip_address = ip_address
         self.port = port
@@ -221,7 +221,6 @@ class ColorGroup(Group):
         "BLUE BLINK": b"\x4d\x00" * 8,
         "DISCO": b"\x4d\x00" * 9
     }
-
     # Set COLOR
     # Byte2: 0x00 to 0xFF (255 colors) = COLOR_CODE
     COLOR = (64).to_bytes(1, byteorder='big')  # send 100ms after GROUP_ON
@@ -243,7 +242,6 @@ class ColorGroup(Group):
         "ORCHID": b"\xE0",
         "LAVENDER": b"\xF0"
     }
-
     def __init__(self, ip_address, port=8899, pause=0.1, group_number=None):
         """ init """
         super().___init___(ip_address, port, pause, group_number)
