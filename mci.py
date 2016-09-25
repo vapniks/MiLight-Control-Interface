@@ -277,15 +277,17 @@ class ColorGroup(Group):
         else:
             self.send_commands(comand=self.DISCO_MODE)
 
-    def increase_disco_speed(self, steps=1, period=None, pause=None, when=None):
+    def increase_disco_speed(self, steps=1, period=None, pause=None, when=None, interleave=False):
         """ Increase disco_speed """
         self.on()
-        self.send_commands(command=self.DISCO_SPEED_FASTER, steps=steps, period=period, pause=pause, when=when)
+        self.send_commands(command=self.DISCO_SPEED_FASTER, steps=steps,
+                               period=period, pause=pause, when=when,  interleave=interleave)
 
-    def decrease_disco_speed(self, steps=1, period=None, pause=None, when=None):
+    def decrease_disco_speed(self, steps=1, period=None, pause=None, when=None, interleave=False):
         """ Decrease disco_speed """
         self.on()
-        self.send_commands(command=self.DISCO_SPEED_SLOWER, steps=steps,  period=period, pause=pause, when=when)
+        self.send_commands(command=self.DISCO_SPEED_SLOWER, steps=steps,
+                               period=period, pause=pause, when=when, interleave=interleave)
 
     def color(self, value, when=None):
         """ Set color """
