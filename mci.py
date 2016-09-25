@@ -10,6 +10,7 @@ import socket
 import time
 from queue import PriorityQueue
 from threading import Thread
+import inspect
 
 class DiscoverBridge(object):
     """ WIFI Bridge Auto Discovery
@@ -246,9 +247,9 @@ class ColorGroup(Group):
         """ init """
         super().___init___(ip_address, port, pause, group)
 
-    def white(self):
+    def white(self, when=None):
         """ Switch to white """
-        self.send_commands(command=self.GROUP_WHITE[self.group])
+        self.send_commands(command=self.GROUP_WHITE[self.group], when=when)
 
     def brightness(self, value=10, when=None):
         """ Set brightness level """
@@ -413,3 +414,26 @@ class WhiteGroup(Group):
         """ Enable nightmode """
         self.off()
         self.send_commands(self.NIGHT_MODE[self.group], when=when)
+
+def apply2grps(grps, delay, fn, args=None):
+    """ Call member function \"fn\" on each Group object in \"grps\" (in order)
+with arguments \"args\", and with a pause of \"delay\" seconds in between each call. 
+E.g: apply2grps([grp1,grp2,grp3],1,\"increase_brightness\",[10,5,None,None,True])
+If args contains a value for \"when\" then the delay will be consecutively added to 
+this time. """
+    if args is None:
+        args = []
+    if type(args) in [tuple, list]:
+        args = dict(zip(inspect.getargspec(getattr(grps[0], fn)).args, args))
+    if 'when' in args:
+        exectime = args.pop('when')
+        if exectime is None:
+            exectime = time.time()
+    else:
+        exectime = time.time()
+    for grp in grps:
+        grpfn = getattr(grp, fn)
+        args['when'] = exectime
+        grpfn(**args)
+        exectime = exectime + delay
+
