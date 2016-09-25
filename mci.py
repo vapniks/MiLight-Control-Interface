@@ -115,8 +115,11 @@ class Group(object):
             if self.queue.empty():
                 self.finished = True
 
-    def empty_queue(self):
+    def empty_queue(self, when=None):
         """ Empty the command queue without executing the commands """
+        now = time.time()
+        if (when is not None) and (when > now):
+            time.sleep(when - now)
         while not self.queue.empty():
             self.queue.get()
             self.queue.task_done()
