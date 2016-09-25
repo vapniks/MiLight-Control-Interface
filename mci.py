@@ -111,9 +111,16 @@ class Group(object):
             sock.sendto(command, (self.ip_address, self.port))
             # close the connection and flag if the queue is empty
             sock.close()
+            self.queue.task_done()
             if self.queue.empty():
                 self.finished = True
-            
+
+    def empty_queue(self):
+        """ Empty the command queue without executing the commands """
+        while not self.queue.empty():
+            self.queue.get()
+            self.queue.task_done()
+                
     def send_commands(self, command, steps=1, period=None, pause=None, when=None, interleave=False, byte2=b"\x00", byte3=b"\x55"):
         """ Send \"steps\" repeats of \"command\" with pause of length \"pause\" inbetween, 
         or if \"period\" is given then make pauses long enough so that commands are all sent
