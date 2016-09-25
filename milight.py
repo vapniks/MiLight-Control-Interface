@@ -35,6 +35,7 @@ def main():
     # TODO: accept a time as a string for the --when argument
     parser.add_argument('-W', '--when', action='store', dest='when', default=None, required=False,
                             help='Time at which command should be executed. Can be any string accepted by the linux "date" command (default=now)')
+    parser.add_argument('-I', '--interleave', action='store_true',dest='interleave', help='Dont wait for command(s) to finish, and allow interleaving with other commands.', default=False, required=False)
     parser.add_argument('--on', action='store_true', dest='action_on',
                         help='Action: ON', default=False, required=False)
     parser.add_argument('--off', action='store_true', dest='action_off',
@@ -146,9 +147,11 @@ def main():
         if action_d:
             lc.disco(when=args.when)
         if action_id:
-            lc.increase_disco_speed(steps=args.steps, period=args.period, pause=args.pause, when=args.when)
+            lc.increase_disco_speed(steps=args.steps, period=args.period, pause=args.pause,
+                                        when=args.when, interleave=args.interleave)
         if action_dd:
-            lc.decrease_disco_speed(steps=args.steps, period=args.period, pause=args.pause, when=args.when)
+            lc.decrease_disco_speed(steps=args.steps, period=args.period, pause=args.pause,
+                                        when=args.when, interleave=args.interleave)
 
     # Execute action White bulbs/strips
     if args.white is not None:
@@ -162,13 +165,17 @@ def main():
         if action_off:
             lc.off()
         if action_ib:
-            lc.increase_brightness(steps=args.steps, period=args.period, pause=args.pause, when=args.when)
+            lc.increase_brightness(steps=args.steps, period=args.period, pause=args.pause,
+                                       when=args.when, interleave=args.interleave)
         if action_db:
-            lc.decrease_brightness(steps=args.steps, period=args.period, pause=args.pause, when=args.when)
+            lc.decrease_brightness(steps=args.steps, period=args.period, pause=args.pause,
+                                       when=args.when, interleave=args.interleave)
         if action_iw:
-            lc.increase_warmth(steps=args.steps, period=args.period, pause=args.pause, when=args.when)
+            lc.increase_warmth(steps=args.steps, period=args.period, pause=args.pause,
+                                   when=args.when, interleave=args.interleave)
         if action_dw:
-            lc.decrease_warmth(steps=args.steps, period=args.period, pause=args.pause, when=args.when)
+            lc.decrease_warmth(steps=args.steps, period=args.period, pause=args.pause,
+                                   when=args.when, interleave=args.interleave)
         if action_b:
             lc.brightmode(when=args.when)
         if action_n:
