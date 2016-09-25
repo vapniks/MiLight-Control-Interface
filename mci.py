@@ -416,10 +416,10 @@ class WhiteGroup(Group):
         """ Enable nightmode """
         self.send_commands(self.NIGHT_MODE[self.group], when=when)
 
-def apply2grps(grps, delay, fn, args=None):
+def apply2grps(grps, fn, delay=0, args=None):
     """ Call member function \"fn\" on each Group object in \"grps\" (in order)
 with arguments \"args\", and with a pause of \"delay\" seconds in between each call. 
-E.g: apply2grps([grp1,grp2,grp3],1,\"increase_brightness\",[10,5,None,None,True])
+E.g: apply2grps([grp1,grp2,grp3],\"increase_brightness\",1,[10,5,None,None,True])
 If args contains a value for \"when\" then the delay will be consecutively added to 
 this time. """
     if args is None:
