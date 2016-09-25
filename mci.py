@@ -122,7 +122,7 @@ class Group(object):
         while not self.queue.empty():
             self.queue.get()
             self.queue.task_done()
-                
+
     def send_commands(self, command, steps=1, period=None, pause=None, when=None,
                           interleave=False, byte2=b"\x00", byte3=b"\x55"):
         """ Send \"steps\" repeats of \"command\" with pause of length \"pause\" inbetween, 
@@ -153,7 +153,9 @@ class Group(object):
                 self.queue.put((cmdtime-self.pause,command,self.group))
             else:
                 self.queue.put((cmdtime,command,None))
-            cmdtime = cmdtime + pause                
+            cmdtime = cmdtime + pause
+        if not interleave:
+            self.queue.join()
         return command
 
     def on(self, when=None):
@@ -320,7 +322,6 @@ class ColorGroup(Group):
     def color_codes(self):
         """ return the color-codes """
         return [c.lower() for c in self.COLOR_CODES.keys()]
-
 
 class WhiteGroup(Group):
     """ A group of white bulbs/strips """
