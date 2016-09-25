@@ -97,7 +97,7 @@ class Group(object):
                 cmdtime = time.time()
             # Lights require time between commands, 100ms is recommended by the documentation
             pause_remaining = max(cmdtime - time.time(),
-                                      (self.pause - (time.time() - self.last_command_time))
+                                      (self.pause - (time.time() - self.last_command_time)))
             if pause_remaining > 0:
                 time.sleep(pause_remaining)
             # open the connection and send the command(s)
