@@ -97,8 +97,7 @@ class Group(object):
                 cmdtime = time.time()
             # Lights require time between commands, 100ms is recommended by the documentation
             pause_remaining = max(cmdtime - time.time(),
-                                      ((1 if group is None else 2)*self.pause)
-                                      - (time.time() - self.last_command_time))
+                                      (self.pause - (time.time() - self.last_command_time))
             if pause_remaining > 0:
                 time.sleep(pause_remaining)
             # open the connection and send the command(s)
@@ -106,7 +105,7 @@ class Group(object):
             if group is not None:
                 oncmd = self.GROUP_ON[group] + b"\x00" + b"\x55"
                 sock.sendto(oncmd, (self.ip_address, self.port))
-            time.sleep(self.pause)    
+                time.sleep(self.pause)    
             self.last_command_time = time.time()
             sock.sendto(command, (self.ip_address, self.port))
             # close the connection and flag if the queue is empty
@@ -124,7 +123,8 @@ class Group(object):
             self.queue.get()
             self.queue.task_done()
                 
-    def send_commands(self, command, steps=1, period=None, pause=None, when=None, interleave=False, byte2=b"\x00", byte3=b"\x55"):
+    def send_commands(self, command, steps=1, period=None, pause=None, when=None,
+                          interleave=False, byte2=b"\x00", byte3=b"\x55"):
         """ Send \"steps\" repeats of \"command\" with pause of length \"pause\" inbetween, 
         or if \"period\" is given then make pauses long enough so that commands are all sent
         within that amount of time (in seconds). If \"when\" is supplied, only start sending the commands
@@ -149,11 +149,11 @@ class Group(object):
         else:
             cmdtime = when
         for i in range(0, steps):
-            cmdtime = cmdtime + pause
-            if interleave:
+            if interleave or i == 0:
                 self.queue.put((cmdtime-self.pause,command,self.group))
             else:
                 self.queue.put((cmdtime,command,None))
+            cmdtime = cmdtime + pause                
         return command
 
     def on(self, when=None):
@@ -265,12 +265,10 @@ class ColorGroup(Group):
         """ Set brightness level """
         value += 2                      # value should be between 0 and 25
         value = max(2, min(27, value))  # value should be between 2 and 27
-        self.on()
         self.send_commands(command=self.BRIGHTNESS, when=when, byte2=(value).to_bytes(1, byteorder='big'))
 
     def disco(self, mode='', when=None):
         """ Enable disco mode, if no valid mode is provided the default disco mode is started """
-        self.on()
         if mode.upper() in self.DISCO_CODES:
             command = self.DISCO_CODE + self.DISCO_CODES[mode.upper()]
             self.send_commands(command=command, when=when, byte2=b"", byte3=b"")
@@ -279,19 +277,16 @@ class ColorGroup(Group):
 
     def increase_disco_speed(self, steps=1, period=None, pause=None, when=None, interleave=False):
         """ Increase disco_speed """
-        self.on()
         self.send_commands(command=self.DISCO_SPEED_FASTER, steps=steps,
                                period=period, pause=pause, when=when,  interleave=interleave)
 
     def decrease_disco_speed(self, steps=1, period=None, pause=None, when=None, interleave=False):
         """ Decrease disco_speed """
-        self.on()
         self.send_commands(command=self.DISCO_SPEED_SLOWER, steps=steps,
                                period=period, pause=pause, when=when, interleave=interleave)
 
     def color(self, value, when=None):
         """ Set color """
-        self.on()
         colorcode = None
         try:
             cvalue = int(value)
@@ -395,36 +390,30 @@ class WhiteGroup(Group):
 
     def increase_brightness(self, steps=1, period=None, pause=None, when=None, interleave=False):
         """ Increase brightness """
-        self.on()
         self.send_commands(self.BRIGHTNESS_UP, steps=steps, period=period, pause=pause,
                                when=when, interleave=interleave)
 
     def decrease_brightness(self, steps=1, period=None, pause=None, when=None, interleave=False):
         """ Decrease brightness """
-        self.on()
         self.send_commands(self.BRIGHTNESS_DOWN, steps=steps, period=period, pause=pause,
                                when=when, interleave=interleave)
 
     def increase_warmth(self, steps=1, period=None, pause=None, when=None, interleave=False):
         """ Increase warmth """
-        self.on()
         self.send_commands(self.WARM_WHITE_INCREASE, steps=steps,  period=period, pause=pause,
                                when=when, interleave=interleave)
 
     def decrease_warmth(self, steps=1, period=None, pause=None, when=None, interleave=False):
         """ Decrease warmth """
-        self.on()
         self.send_commands(self.COOL_WHITE_INCREASE, steps=steps, period=period, pause=pause, 
                                when=when, interleave=interleave)
 
     def brightmode(self, when=None):
         """ Enable full brightness """
-        self.on()
         self.send_commands(self.FULL_BRIGHTNESS[self.group], when=when)
 
     def nightmode(self, when=None):
         """ Enable nightmode """
-        self.off()
         self.send_commands(self.NIGHT_MODE[self.group], when=when)
 
 def apply2grps(grps, delay, fn, args=None):
